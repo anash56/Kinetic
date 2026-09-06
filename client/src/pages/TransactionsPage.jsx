@@ -244,3 +244,5 @@ export function TransactionsPage({ items, reload }) {
     </>
   );
 }
+
+export default TransactionsPage;

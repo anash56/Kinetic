@@ -137,3 +137,5 @@ export function DashboardPage({ data, onNavigate }) {
     </>
   );
 }
+
+export default DashboardPage;

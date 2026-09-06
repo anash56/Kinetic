@@ -82,3 +82,5 @@ export function WealthPage({ data, reload }) {
     </>
   );
 }
+
+export default WealthPage;

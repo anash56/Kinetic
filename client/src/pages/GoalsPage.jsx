@@ -73,3 +73,5 @@ export function GoalsPage({ goals, reload }) {
     </>
   );
 }
+
+export default GoalsPage;

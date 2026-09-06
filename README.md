@@ -27,11 +27,19 @@ Full-stack personal-finance platform built with **React** (Vite), **Node.js**, *
 2. The included `server/.env` is preconfigured for the local container. Change the JWT secret before deployment.
 3. Install packages: `npm run install:all`
 4. Run migrations: `npm run prisma:migrate --prefix server -- --name init`
-5. Start both apps: `npm run dev`
+5. (Optional) Seed realistic demo data: `npm run seed --prefix server`
+6. Start both apps: `npm run dev`
 
 The React app runs at `http://localhost:5173` and the API at `http://localhost:4000`.
 
 To access the admin page, set a user's `role` to `ADMIN` in Prisma Studio: `npm exec prisma studio --prefix server`.
+
+## Demo account (after seeding)
+
+- Email: `demo@kinetic.app`
+- Password: `demo1234`
+- Role: `ADMIN` (full access including the admin panel)
+- Includes 6 months of realistic transactions, income sources, savings goals, assets/investments, and financial habits with check-in history — so the dashboard and charts render with real data instead of placeholders.
 
 ## API endpoints
 

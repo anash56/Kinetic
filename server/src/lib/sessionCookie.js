@@ -3,9 +3,8 @@ import { parseCookie, stringifySetCookie } from 'cookie';
 export const SESSION_COOKIE = 'kinetic_session';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const sameSite = ['strict', 'lax', 'none'].includes(process.env.COOKIE_SAME_SITE)
-  ? process.env.COOKIE_SAME_SITE
-  : 'lax';
+
+const sameSite = isProduction ? 'none' : 'lax';
 
 const baseOptions = {
   httpOnly: true,

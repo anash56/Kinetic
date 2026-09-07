@@ -1,21 +1,47 @@
 import { useEffect, useState } from "react";
-import { MessageSquareWarning, ReceiptText, Repeat2, Shield, Target, TrendingUp, Users } from "lucide-react";
+import { LoaderCircle, MessageSquareWarning, ReceiptText, RefreshCw, Repeat2, Shield, ShieldCheck, Target, Trash2, Users } from "lucide-react";
 import { PageTitle } from "../components/ui/PageTitle";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Stat } from "../components/ui/Stat";
 import { api } from "../lib/api";
 import { money } from "../utils/format";
 
-export function AdminPage() {
+export function AdminPage({ user }) {
   const [data, setData] = useState(null);
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [feedback, setFeedback] = useState([]);
+  const [deleteUser, setDeleteUser] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const loadUsers = () => api("/admin/users").then(setUsers).catch(() => {});
+  const showNotice = (message) => { setNotice(message); setTimeout(() => setNotice(""), 3500); };
+  const refreshAdminData = async () => {
+    setRefreshing(true);
+    try {
+      const [overview, userList, platformAnalytics, feedbackList] = await Promise.all([
+        api("/admin/overview"),
+        api("/admin/users"),
+        api("/admin/analytics"),
+        api("/admin/feedback"),
+      ]);
+      setData(overview);
+      setUsers(userList);
+      setAnalytics(platformAnalytics);
+      setFeedback(feedbackList);
+    } catch (requestError) {
+      showNotice(requestError.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    api("/admin/overview").then(setData).catch(() => {});
-    api("/admin/users").then(setUsers).catch(() => {});
-    api("/admin/analytics").then(setAnalytics).catch(() => {});
-    api("/admin/feedback").then(setFeedback).catch(() => {});
+    refreshAdminData();
+    window.addEventListener("focus", refreshAdminData);
+    return () => window.removeEventListener("focus", refreshAdminData);
   }, []);
 
   const setFeedbackStatus = async (id, status) => {
@@ -24,11 +50,48 @@ export function AdminPage() {
     setFeedback(next);
   };
 
+  const toggleRole = async (user) => {
+    const nextRole = user.role === "ADMIN" ? "USER" : "ADMIN";
+    setBusy(true);
+    try {
+      await api(`/admin/users/${user.id}`, { method: "PATCH", body: JSON.stringify({ role: nextRole }) });
+      await loadUsers();
+      showNotice(`${user.name} is now ${nextRole === "ADMIN" ? "an admin" : "a regular user"}.`);
+    } catch (requestError) {
+      showNotice(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDeleteUser = async () => {
+    setBusy(true);
+    try {
+      await api(`/admin/users/${deleteUser.id}`, { method: "DELETE" });
+      await loadUsers();
+      setDeleteUser(null);
+      showNotice(`${deleteUser.name} was removed.`);
+    } catch (requestError) {
+      showNotice(requestError.message);
+      setDeleteUser(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const totalPortfolio = analytics ? Number(analytics.netPlatformWorth) : 0;
+  const me = user?.id;
 
   return (
     <>
-      <PageTitle title="Admin panel" sub="Platform activity and user overview." />
+      <PageTitle
+        title="Admin panel"
+        sub="Platform activity and user overview."
+        action={<button className="icon-action" title="Refresh admin data" onClick={refreshAdminData} disabled={refreshing}>
+          {refreshing ? <LoaderCircle className="spin" /> : <RefreshCw />}
+        </button>}
+      />
+      {notice && <div className="notice">{notice}</div>}
       {data ? (
         <div className="stats">
           <Stat label="Registered users" value={data.users} icon={<Shield />} />
@@ -70,7 +133,12 @@ export function AdminPage() {
       )}
 
       <section className="card table">
-        <h3>Users</h3>
+        <div className="between">
+          <div>
+            <h3>Users</h3>
+            <p>Promote users to admins or remove accounts.</p>
+          </div>
+        </div>
         <table>
           <thead>
             <tr>
@@ -80,19 +148,33 @@ export function AdminPage() {
               <th>Transactions</th>
               <th>Habits</th>
               <th>Joined</th>
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td><b>{user.name}</b></td>
-                <td>{user.email}</td>
-                <td>{user.role}</td>
-                <td>{user._count.transactions}</td>
-                <td>{user._count.habits}</td>
-                <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-              </tr>
-            ))}
+            {users.map((user) => {
+              const isSelf = user.id === me;
+              return (
+                <tr key={user.id}>
+                  <td><b>{user.name}{isSelf && <small className="muted"> · you</small>}</b></td>
+                  <td>{user.email}</td>
+                  <td><span className={`tag ${user.role === "ADMIN" ? "tag-admin" : "tag-user"}`}>{user.role}</span></td>
+                  <td>{user._count.transactions}</td>
+                  <td>{user._count.habits}</td>
+                  <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="icon-action" title={user.role === "ADMIN" ? "Revoke admin" : "Make admin"} disabled={isSelf || busy} onClick={() => toggleRole(user)}>
+                        {user.role === "ADMIN" ? <Shield /> : <ShieldCheck />}
+                      </button>
+                      <button className="icon-action danger" title="Delete user" disabled={isSelf || busy} onClick={() => setDeleteUser(user)}>
+                        <Trash2 />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </section>
@@ -129,6 +211,16 @@ export function AdminPage() {
           <p className="muted">No feedback yet.</p>
         )}
       </section>
+      {deleteUser && (
+        <ConfirmDialog
+          title="Delete user"
+          message={`Remove “${deleteUser.name}” (${deleteUser.email})? This permanently deletes their account and all related financial data.`}
+          confirmLabel="Delete user"
+          busy={busy}
+          onConfirm={confirmDeleteUser}
+          onCancel={() => setDeleteUser(null)}
+        />
+      )}
     </>
   );
 }

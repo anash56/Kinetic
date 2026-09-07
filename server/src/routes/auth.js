@@ -1,6 +1,12 @@
-import { Router } from 'express'; import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import { z } from 'zod'; import { prisma } from '../prisma.js';
-const router = Router(); const credentials = z.object({ email:z.string().email(), password:z.string().min(6), name:z.string().min(2).optional().or(z.literal('').transform(() => undefined)) });
-const tokenFor = user => jwt.sign({ id:user.id, name:user.name, email:user.email, role:user.role }, process.env.JWT_SECRET, { expiresIn:'7d' });
-router.post('/register', async (req,res,next) => { try { const data=credentials.parse(req.body); if(!data.name) return res.status(400).json({message:'Name is required.'}); const exists=await prisma.user.findUnique({where:{email:data.email}}); if(exists) return res.status(409).json({message:'An account already exists for this email.'}); const user=await prisma.user.create({data:{name:data.name,email:data.email,passwordHash:await bcrypt.hash(data.password,12)}}); res.status(201).json({token:tokenFor(user),user:{id:user.id,name:user.name,email:user.email,role:user.role}}); } catch(e){next(e)} });
-router.post('/login', async (req,res,next) => { try { const data=credentials.parse(req.body); const user=await prisma.user.findUnique({where:{email:data.email}}); if(!user || !await bcrypt.compare(data.password,user.passwordHash)) return res.status(401).json({message:'Invalid email or password.'}); res.json({token:tokenFor(user),user:{id:user.id,name:user.name,email:user.email,role:user.role}}); } catch(e){next(e)} });
+import { Router } from 'express';
+import { currentUser, login, logout, register } from '../controllers/auth.js';
+import { auth } from '../middleware/auth.js';
+
+const router = Router();
+
+router.post('/register', register);
+router.post('/login', login);
+router.get('/me', auth(), currentUser);
+router.post('/logout', logout);
+
 export default router;

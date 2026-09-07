@@ -4,6 +4,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { PageTitle } from '../components/ui/PageTitle';
 import { api } from '../lib/api';
+import { dateKey, isCompletedThisPeriod, periodLabel, periodKey } from '../utils/habitPeriods';
 
 export function HabitsPage({ habits, reload }) {
   const [modal, setModal] = useState(false);
@@ -16,12 +17,15 @@ export function HabitsPage({ habits, reload }) {
     reload();
   };
   const complete = async (id) => {
-    await api(`/habits/${id}/complete`, { method: 'POST' });
+    await api(`/habits/${id}/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ completedOn: today }),
+    });
     reload();
   };
   const update = (event) => setForm({ ...form, [event.target.name]: event.target.value });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateKey(new Date());
 
   return (
     <>
@@ -32,20 +36,17 @@ export function HabitsPage({ habits, reload }) {
       />
       <div className="habitgrid">
         {habits.map((habit) => {
-          const done = habit.completions.some((completion) => completion.completedOn.slice(0, 10) === today);
-          const weekCount = habit.completions.filter((completion) => {
-            const daysAgo = (Date.now() - new Date(completion.completedOn).getTime()) / 86400000;
-            return daysAgo < 7;
-          }).length;
+          const done = isCompletedThisPeriod(habit);
+          const periodCount = new Set(habit.completions.map((completion) => periodKey(habit.frequency, completion.completedOn))).size;
           return (
             <section className="card habit" key={habit.id}>
               <span className="habitIcon">{habit.name.toLowerCase().includes('save') ? '💰' : '✓'}</span>
               <h3>{habit.name}</h3>
               <p className="muted">{habit.frequency.toLowerCase()}{habit.reminderTime && <span className="reminder"><Bell size={13} /> {habit.reminderTime}</span>}</p>
-              <strong>{habit.completions.length} <small>check-ins</small></strong>
-              <small className="muted">{weekCount} in the last 7 days</small>
+              <strong>{periodCount} <small>completed periods</small></strong>
+              <small className="muted">{periodCount} completed period{periodCount === 1 ? '' : 's'}</small>
               <button className={done ? 'done' : 'primary'} onClick={() => !done && complete(habit.id)}>
-                {done ? 'Completed today ✓' : 'Mark complete'}
+                {done ? `Completed ${periodLabel(habit.frequency)} ✓` : `Mark complete for ${periodLabel(habit.frequency)}`}
               </button>
             </section>
           );
@@ -61,7 +62,7 @@ export function HabitsPage({ habits, reload }) {
           <form className="form" onSubmit={save}>
             <label className="full">Habit name<input name="name" required placeholder="Save ₹100 daily" value={form.name} onChange={update} /></label>
             <label>Frequency<select name="frequency" value={form.frequency} onChange={update}><option>DAILY</option><option>WEEKLY</option><option>MONTHLY</option></select></label>
-            <label>Daily reminder<small className="muted">We'll remind you at this time</small><input name="reminderTime" type="time" value={form.reminderTime} onChange={update} /></label>
+            <label>Daily reminder<input name="reminderTime" type="time" value={form.reminderTime} onChange={update} /></label>
             <button className="primary">Create habit</button>
           </form>
         </Modal>

@@ -1,4 +1,4 @@
-import { ChartNoAxesCombined, LayoutDashboard, ReceiptText, Repeat2, Shield, Target } from 'lucide-react';
+import { ChartNoAxesCombined, LayoutDashboard, MessageSquare, ReceiptText, Repeat2, Shield, Target } from 'lucide-react';
 
 export const navigation = [
   ['dashboard', 'Dashboard', LayoutDashboard],
@@ -6,5 +6,6 @@ export const navigation = [
   ['habits', 'Habits', Repeat2],
   ['goals', 'Savings goals', Target],
   ['wealth', 'Wealth analytics', ChartNoAxesCombined],
+  ['feedback', 'Feedback', MessageSquare],
   ['admin', 'Admin panel', Shield],
 ];

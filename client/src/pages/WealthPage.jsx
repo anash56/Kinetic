@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowUpRight, Plus, ReceiptText, Trash2, TrendingUp, Wallet } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PageTitle } from '../components/ui/PageTitle';
 import { Stat } from '../components/ui/Stat';
 import { api } from '../lib/api';
@@ -9,10 +10,15 @@ import { formatMonth, money } from '../utils/format';
 
 export function WealthPage({ data, reload }) {
   const [modal, setModal] = useState(false);
+  const [deleteAsset, setDeleteAsset] = useState(null);
+  const [removing, setRemoving] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'Investment', value: '' });
   const savingsRate = data.income ? Math.max(0, Math.round((data.savings / data.income) * 100)) : 0;
   const save = async (event) => { event.preventDefault(); await api('/assets', { method: 'POST', body: JSON.stringify(form) }); setModal(false); setForm({ name: '', type: 'Investment', value: '' }); reload(); };
-  const remove = async (id) => { if (!window.confirm('Delete this asset?')) return; await api(`/assets/${id}`, { method: 'DELETE' }); reload(); };
+  const confirmRemove = async () => {
+    setRemoving(true);
+    try { await api(`/assets/${deleteAsset.id}`, { method: 'DELETE' }); reload(); } finally { setRemoving(false); setDeleteAsset(null); }
+  };
   const update = (event) => setForm({ ...form, [event.target.name]: event.target.value });
 
   const historyPoints = (data.wealthHistory?.length || 0) > 1
@@ -71,7 +77,7 @@ export function WealthPage({ data, reload }) {
       <section className="card">
         <h3>Assets and investments</h3>
         <p>Track the current value of your investments and possessions.</p>
-        {data.assets.length ? <div className="asset-list">{data.assets.map((asset) => <div className="row" key={asset.id}><span className="circle">↗</span><div><b>{asset.name}</b><small>{asset.type}</small></div><b className="positive">{money(asset.value)}</b><button className="icon-action danger" title="Delete asset" onClick={() => remove(asset.id)}><Trash2 /></button></div>)}</div> : <div className="empty"><p>No assets recorded yet.</p></div>}
+        {data.assets.length ? <div className="asset-list">{data.assets.map((asset) => <div className="row" key={asset.id}><span className="circle">↗</span><div><b>{asset.name}</b><small>{asset.type}</small></div><b className="positive">{money(asset.value)}</b><button className="icon-action danger" title="Delete asset" onClick={() => setDeleteAsset(asset)}><Trash2 /></button></div>)}</div> : <div className="empty"><p>No assets recorded yet.</p></div>}
       </section>
       <section className="card">
         <h3>Financial health snapshot</h3>
@@ -79,6 +85,16 @@ export function WealthPage({ data, reload }) {
         <div className="health"><b>{savingsRate}%</b><span>of your recorded income remains after expenses</span></div>
       </section>
       {modal && <Modal title="Add asset or investment" onClose={() => setModal(false)}><form className="form" onSubmit={save}><label>Asset name<input name="name" required placeholder="Index fund" value={form.name} onChange={update} /></label><label>Asset type<select name="type" value={form.type} onChange={update}><option>Investment</option><option>Cash</option><option>Property</option><option>Vehicle</option><option>Other</option></select></label><label className="full">Current value (₹)<input name="value" required type="number" min="1" value={form.value} onChange={update} /></label><button className="primary">Save asset</button></form></Modal>}
+      {deleteAsset && (
+        <ConfirmDialog
+          title="Delete asset"
+          message={`Remove “${deleteAsset.name}” (${money(deleteAsset.value)})? This cannot be undone.`}
+          confirmLabel="Delete asset"
+          busy={removing}
+          onConfirm={confirmRemove}
+          onCancel={() => setDeleteAsset(null)}
+        />
+      )}
     </>
   );
 }

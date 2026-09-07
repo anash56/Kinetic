@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "../components/ui/Modal";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { PageTitle } from "../components/ui/PageTitle";
 import { EmptyState } from "../components/ui/EmptyState";
 import { api } from "../lib/api";
@@ -9,6 +10,9 @@ import { money } from "../utils/format";
 export function TransactionsPage({ items, reload }) {
   const [modal, setModal] = useState(false);
   const [sourceModal, setSourceModal] = useState(false);
+  const [deleteTransaction, setDeleteTransaction] = useState(null);
+  const [deleteSource, setDeleteSource] = useState(null);
+  const [removing, setRemoving] = useState(false);
   const [sourceForm, setSourceForm] = useState({ name: "", amount: "", frequency: "MONTHLY" });
   const [categories, setCategories] = useState(["Food", "Transport", "Rent", "Utilities", "Entertainment", "Shopping", "Healthcare", "Education", "Savings", "Investments", "Subscriptions", "Other"]);
   const [sources, setSources] = useState([]);
@@ -46,10 +50,17 @@ export function TransactionsPage({ items, reload }) {
   };
 
   const update = (event) => setForm({ ...form, [event.target.name]: event.target.value });
-  const remove = async (id) => {
-    if (!window.confirm("Delete this transaction?")) return;
-    await api(`/transactions/${id}`, { method: "DELETE" });
-    reload();
+  const confirmRemoveTransaction = async () => {
+    setRemoving(true);
+    try { await api(`/transactions/${deleteTransaction.id}`, { method: "DELETE" }); reload(); }
+    finally { setRemoving(false); setDeleteTransaction(null); }
+  };
+  const confirmRemoveSource = async () => {
+    setRemoving(true);
+    try {
+      await api(`/income-sources/${deleteSource.id}`, { method: "DELETE" });
+      setSources(await api("/income-sources"));
+    } finally { setRemoving(false); setDeleteSource(null); }
   };
   const updateSource = (event) => setSourceForm({ ...sourceForm, [event.target.name]: event.target.value });
   const saveSource = async (event) => {
@@ -121,7 +132,7 @@ export function TransactionsPage({ items, reload }) {
                   <small>{source.frequency.toLowerCase()} income</small>
                 </div>
                 <b className="positive">{money(source.amount)}</b>
-                <button className="icon-action danger" title="Delete income source" onClick={async () => { if (!window.confirm(`Remove ${source.name}?`)) return; await api(`/income-sources/${source.id}`, { method: "DELETE" }); const next = await api("/income-sources"); setSources(next); }}><Trash2 /></button>
+                <button className="icon-action danger" title="Delete income source" onClick={() => setDeleteSource(source)}><Trash2 /></button>
               </div>
             ))}
           </div>
@@ -159,7 +170,7 @@ export function TransactionsPage({ items, reload }) {
                   {item.type === "INCOME" ? "+" : "-"}
                   {money(item.amount)}
                 </td>
-                <td><button className="icon-action danger" title="Delete transaction" onClick={() => remove(item.id)}><Trash2 /></button></td>
+                <td><button className="icon-action danger" title="Delete transaction" onClick={() => setDeleteTransaction(item)}><Trash2 /></button></td>
               </tr>
             ))}
           </tbody>
@@ -240,6 +251,26 @@ export function TransactionsPage({ items, reload }) {
             <button className="primary" disabled={saving}>{saving ? "Saving…" : "Add income source"}</button>
           </form>
         </Modal>
+      )}
+      {deleteTransaction && (
+        <ConfirmDialog
+          title="Delete transaction"
+          message={`Delete ${deleteTransaction.type === "INCOME" ? "income" : "expense"} of ${money(deleteTransaction.amount)} (${deleteTransaction.category})? This cannot be undone.`}
+          confirmLabel="Delete"
+          busy={removing}
+          onConfirm={confirmRemoveTransaction}
+          onCancel={() => setDeleteTransaction(null)}
+        />
+      )}
+      {deleteSource && (
+        <ConfirmDialog
+          title="Remove income source"
+          message={`Remove “${deleteSource.name}” (${money(deleteSource.amount)}/${deleteSource.frequency.toLowerCase()})? Linked transactions will be kept.`}
+          confirmLabel="Remove"
+          busy={removing}
+          onConfirm={confirmRemoveSource}
+          onCancel={() => setDeleteSource(null)}
+        />
       )}
     </>
   );

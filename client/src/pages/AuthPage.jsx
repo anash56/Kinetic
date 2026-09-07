@@ -12,7 +12,7 @@ export function AuthPage({ onAuth }) {
     try {
       const credentials = register ? form : { email: form.email, password: form.password };
       const data = await api(`/auth/${register ? 'register' : 'login'}`, { method: 'POST', body: JSON.stringify(credentials) });
-      localStorage.token = data.token; onAuth(data.user);
+      onAuth(data.user);
     }
     catch (requestError) { setError(requestError.message); } finally { setBusy(false); }
   };

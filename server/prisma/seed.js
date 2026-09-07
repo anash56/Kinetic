@@ -1,10 +1,21 @@
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import 'dotenv/config';
+
+if (process.env.NODE_ENV === 'production') {
+  console.error('Refusing to seed a production database.');
+  process.exit(1);
+}
+
+const { PrismaClient } = await import('@prisma/client');
+const { default: bcrypt } = await import('bcryptjs');
 
 const prisma = new PrismaClient();
 
-const SEED_USER_EMAIL = 'demo@kinetic.app';
-const SEED_USER_PASSWORD = 'demo1234';
+const SEED_USER_EMAIL = process.env.SEED_USER_EMAIL;
+const SEED_USER_PASSWORD = process.env.SEED_USER_PASSWORD;
+
+if (!SEED_USER_EMAIL || !SEED_USER_PASSWORD) {
+  throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD must be set for local seeding.');
+}
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -76,6 +87,10 @@ const generateCompletions = (habit) => {
   for (let i = 1; i < 120; i++) {
     const day = new Date(today);
     day.setDate(day.getDate() - i);
+    const isWeeklyPeriodStart = day.getDay() === 1;
+    const isMonthlyPeriodStart = day.getDate() === 1;
+    if (habit.frequency === 'WEEKLY' && !isWeeklyPeriodStart) continue;
+    if (habit.frequency === 'MONTHLY' && !isMonthlyPeriodStart) continue;
     const skip = Math.random() > 0.55;
     if (skip) continue;
     const keys = day.toISOString().split('T')[0].split('-').filter(Boolean);
@@ -110,6 +125,13 @@ const main = async () => {
     let userId;
     if (existing) {
       console.log('→ Demo user already exists. Cleaning their data and reseeding…');
+      await tx.user.update({
+        where: { id: existing.id },
+        data: {
+          passwordHash: await bcrypt.hash(SEED_USER_PASSWORD, 12),
+          role: 'ADMIN',
+        },
+      });
       await Promise.all([
         tx.transaction.deleteMany({ where: { userId: existing.id } }),
         tx.habit.deleteMany({ where: { userId: existing.id } }),

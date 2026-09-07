@@ -4,25 +4,47 @@ export const SESSION_COOKIE = 'kinetic_session';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const sameSite = isProduction ? 'none' : 'lax';
-
 const baseOptions = {
   httpOnly: true,
   secure: isProduction,
-  sameSite,
+  sameSite: isProduction ? 'none' : 'lax',
   path: '/',
   maxAge: 7 * 24 * 60 * 60,
 };
 
 export const setSessionCookie = (res, token) => {
-  res.setHeader('Set-Cookie', stringifySetCookie({ name: SESSION_COOKIE, value: token, ...baseOptions }));
+  const cookie = stringifySetCookie({
+    name: SESSION_COOKIE,
+    value: token,
+    ...baseOptions,
+  });
+
+  // Temporary debugging — token is deliberately hidden.
+  console.log(
+    'SET-COOKIE:',
+    cookie.replace(token, '[REDACTED]')
+  );
+
+  res.setHeader('Set-Cookie', cookie);
 };
 
 export const clearSessionCookie = (res) => {
-  res.setHeader('Set-Cookie', stringifySetCookie({ name: SESSION_COOKIE, value: '', ...baseOptions, maxAge: 0 }));
+  const cookie = stringifySetCookie({
+    name: SESSION_COOKIE,
+    value: '',
+    ...baseOptions,
+    maxAge: 0,
+  });
+
+  res.setHeader('Set-Cookie', cookie);
 };
 
 export const sessionTokenFromRequest = (req) => {
   const cookies = parseCookie(req.headers.cookie || '');
-  return cookies[SESSION_COOKIE] || req.headers.authorization?.replace('Bearer ', '');
+
+  return (
+    cookies[SESSION_COOKIE] ||
+    req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+    null
+  );
 };

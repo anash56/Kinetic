@@ -9,6 +9,7 @@ import adminRoutes from "./routes/admin.js";
 import { auth } from "./middleware/auth.js";
 import { prisma } from "./prisma.js";
 const app = express();
+app.set("trust proxy", 1);
 const isProduction = process.env.NODE_ENV === "production";
 const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 if (isProduction) {

@@ -17,7 +17,10 @@ const requestBody = (req) => {
 
 export default async function handler(req, res) {
   const incomingUrl = new URL(req.url, 'https://vercel.local');
-  const backendPath = incomingUrl.pathname.replace(/^\/api/, '') || '/';
+  let backendPath = incomingUrl.pathname;
+  while (backendPath.startsWith('/api/')) backendPath = backendPath.slice(4);
+  if (!backendPath.startsWith('/')) backendPath = `/${backendPath}`;
+  backendPath = backendPath || '/';
   const targetUrl = `${API_ORIGIN}/api${backendPath}${incomingUrl.search}`;
 
   try {

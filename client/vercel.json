@@ -3,10 +3,6 @@
     {
       "source": "/api/:path*",
       "destination": "https://kinetic-kgeo.onrender.com/:path*"
-    },
-    {
-      "source": "/((?!api(?:/|$)).*)",
-      "destination": "/index.html"
     }
-  ]
+    ]
 }

@@ -1,9 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "proxy": {
+    "entrypoint": "proxy.js",
+    "matcher": ["/api/:path*", "/api"]
+  },
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://kinetic-kgeo.onrender.com/:path*"
-    },
     {
       "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"

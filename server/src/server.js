@@ -39,6 +39,14 @@ app.use(
 );
 app.use(helmet());
 app.use(express.json({ limit: "100kb" }));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const isStateChanging = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
+  if (isStateChanging && origin && origin !== clientUrl) {
+    return res.status(403).json({ message: "Blocked by cross-origin policy." });
+  }
+  next();
+});
 app.get("/api/health", async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
